@@ -64,8 +64,9 @@ class TenantProvisioningTest extends TestCase
             'terms_accepted' => true,
         ]);
 
-        $response->assertRedirect('http://aurora.'.$baseDomain.':8000/admin/dashboard');
+        $response->assertRedirect('/admin/dashboard');
         $response->assertSessionHas('success', 'Tu espacio de trabajo para el salon ya esta listo.');
+        $response->assertSessionHas('provisioned_tenant_id');
 
         $tenant = Tenant::query()->where('domain', 'aurora.'.$baseDomain)->firstOrFail();
         $owner = User::query()->where('email', 'ana@example.com')->firstOrFail();
@@ -87,7 +88,9 @@ class TenantProvisioningTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response = $this->get('http://aurora.'.$baseDomain.'/admin/dashboard');
+        $response = $this->withSession([
+            'provisioned_tenant_id' => $tenant->id,
+        ])->get('/admin/dashboard');
 
         $response->assertOk();
         $response->assertSee('Salon de Belleza Aurora');
@@ -100,6 +103,46 @@ class TenantProvisioningTest extends TestCase
         $response = $this->get('http://missing.'.config('provisioning.base_domain').'/admin/dashboard');
 
         $response->assertNotFound();
+    }
+
+    public function test_admin_dashboard_falls_back_to_latest_tenant_on_localhost_for_development(): void
+    {
+        Tenant::create([
+            'name' => 'Salon de Belleza Uno',
+            'domain' => 'uno.'.config('provisioning.base_domain'),
+            'tenant_id' => 1,
+            'status' => 'active',
+        ]);
+
+        $latestTenant = Tenant::create([
+            'name' => 'Salon de Belleza Dos',
+            'domain' => 'dos.'.config('provisioning.base_domain'),
+            'tenant_id' => 2,
+            'status' => 'active',
+        ]);
+
+        $response = $this->get('/admin/dashboard');
+
+        $response->assertOk();
+        $response->assertSee($latestTenant->name);
+    }
+
+    public function test_admin_sections_can_be_loaded_for_navigation_validation(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Salon de Belleza Navegacion',
+            'domain' => 'navegacion.'.config('provisioning.base_domain'),
+            'tenant_id' => 1,
+            'status' => 'active',
+        ]);
+
+        $session = ['provisioned_tenant_id' => $tenant->id];
+
+        $this->withSession($session)->get('/admin/services')->assertOk()->assertSee('Servicios');
+        $this->withSession($session)->get('/admin/reminders')->assertOk()->assertSee('Recordatorios');
+        $this->withSession($session)->get('/admin/users')->assertOk()->assertSee('Usuarios');
+        $this->withSession($session)->get('/admin/clients')->assertOk()->assertSee('Clientes');
+        $this->withSession($session)->get('/admin/settings')->assertOk()->assertSee('Configuracion');
     }
 
     public function test_owner_email_must_be_unique_for_owner_accounts(): void

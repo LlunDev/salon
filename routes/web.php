@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AdminSectionController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\TenantProvisioningController;
 use Illuminate\Foundation\Application;
@@ -22,6 +23,11 @@ Route::get('/demo/domain-availability', [TenantProvisioningController::class, 'd
 Route::post('/demo/provision', [TenantProvisioningController::class, 'store'])->name('demo.provision');
 Route::middleware('tenant.resolve')->group(function () {
     Route::get('/admin/dashboard', AdminDashboardController::class)->name('admin.dashboard');
+    Route::get('/admin/services', [AdminSectionController::class, 'services'])->name('admin.services');
+    Route::get('/admin/reminders', [AdminSectionController::class, 'reminders'])->name('admin.reminders');
+    Route::get('/admin/users', [AdminSectionController::class, 'users'])->name('admin.users');
+    Route::get('/admin/clients', [AdminSectionController::class, 'clients'])->name('admin.clients');
+    Route::get('/admin/settings', [AdminSectionController::class, 'settings'])->name('admin.settings');
 });
 
 Route::get('/dashboard', function () {

@@ -1,4 +1,5 @@
 <script setup>
+import BasePage from '@/Components/BasePage.vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 defineProps({
@@ -19,23 +20,12 @@ defineProps({
 
 <template>
     <AdminLayout title="Panel del salon" :salon="salon">
-        <section class="space-y-6">
-            <div class="rounded-[2rem] bg-gradient-to-r from-[#0f172a] via-[#1f1630] to-[#312e81] p-6 text-white shadow-[0_28px_80px_rgba(49,46,129,0.28)] sm:p-8">
-                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Panel de administracion</p>
-                <div class="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{{ salon.name }}</h1>
-                        <p class="mt-3 max-w-2xl text-sm leading-7 text-white/70 sm:text-base">
-                            Vista general de tu salon. Por ahora mostramos informacion mock para avanzar con el frontend del panel.
-                        </p>
-                    </div>
-
-                    <div class="rounded-[1.5rem] border border-white/10 bg-white/10 px-5 py-4 backdrop-blur">
-                        <p class="text-xs uppercase tracking-[0.3em] text-white/50">Dominio activo</p>
-                        <p class="mt-2 text-lg font-semibold text-white">{{ salon.domain }}</p>
-                    </div>
+        <BasePage :title="salon.name" description="Vista general de tu salon. Por ahora mostramos informacion mock para avanzar con el frontend del panel.">
+            <template #default>
+                <div class="rounded-[1.5rem] border border-white/10 bg-gradient-to-r from-[#0f172a] via-[#1f1630] to-[#312e81] px-5 py-4 text-white shadow-[0_20px_40px_rgba(49,46,129,0.22)] backdrop-blur sm:max-w-sm">
+                    <p class="text-xs uppercase tracking-[0.3em] text-white/50">Dominio activo</p>
+                    <p class="mt-2 text-lg font-semibold text-white">{{ salon.domain }}</p>
                 </div>
-            </div>
 
             <div class="grid gap-4 md:grid-cols-3">
                 <article
@@ -99,6 +89,7 @@ defineProps({
                     </div>
                 </section>
             </div>
-        </section>
+            </template>
+        </BasePage>
     </AdminLayout>
 </template>

@@ -107,9 +107,10 @@ class TenantProvisioningController extends Controller
             return $tenant;
         });
 
-        return redirect()
-            ->away($this->tenantAdminUrl($tenant->domain, $request))
-            ->with('success', 'Tu espacio de trabajo para el salon ya esta listo.');
+        return to_route('admin.dashboard')->with([
+            'success' => 'Tu espacio de trabajo para el salon ya esta listo.',
+            'provisioned_tenant_id' => $tenant->id,
+        ]);
     }
 
     private function baseDomain(): string
@@ -120,13 +121,5 @@ class TenantProvisioningController extends Controller
     private function fullDomain(string $subdomain): string
     {
         return strtolower(trim($subdomain)).'.'.$this->baseDomain();
-    }
-
-    private function tenantAdminUrl(string $domain, Request $request): string
-    {
-        $port = $request->getPort();
-        $portSegment = in_array($port, [80, 443], true) ? '' : ':'.$port;
-
-        return $request->getScheme().'://'.$domain.$portSegment.'/admin/dashboard';
     }
 }

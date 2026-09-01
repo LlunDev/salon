@@ -1,0 +1,55 @@
+services:
+    laravel.test:
+        build:
+            context: './docker/8.5'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP:-1000}'
+        image: 'sail-8.5/app'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${APP_PORT:-18080}:80'
+        environment:
+            WWWUSER: '${WWWUSER:-1000}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD:-/var/www/html}'
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://127.0.0.1/']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
+        volumes:
+            - '.:/var/www/html'
+        depends_on:
+            postgres:
+                condition: service_healthy
+        networks:
+            - sail
+    postgres:
+        image: 'postgres:17-alpine'
+        ports:
+            - '${FORWARD_DB_PORT:-15432}:5432'
+        environment:
+            POSTGRES_DB: '${DB_DATABASE:-salon}'
+            POSTGRES_USER: '${DB_USERNAME:-salon}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-salon} -d ${DB_DATABASE:-salon}']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        volumes:
+            - 'sail-postgres:/var/lib/postgresql/data'
+        networks:
+            - sail
+networks:
+    sail:
+        driver: bridge
+volumes:
+    sail-postgres:
+        driver: local

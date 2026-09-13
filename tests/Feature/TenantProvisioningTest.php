@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class TenantProvisioningTest extends TestCase
@@ -27,7 +28,6 @@ class TenantProvisioningTest extends TestCase
         Tenant::create([
             'name' => 'Existing Salon',
             'domain' => 'existing.'.$baseDomain,
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
@@ -71,8 +71,10 @@ class TenantProvisioningTest extends TestCase
         $tenant = Tenant::query()->where('domain', 'aurora.'.$baseDomain)->firstOrFail();
         $owner = User::query()->where('email', 'ana@example.com')->firstOrFail();
 
-        $this->assertSame($tenant->id, $tenant->tenant_id);
         $this->assertSame($tenant->id, $owner->tenant_id);
+        $this->assertTrue(Str::isUuid($tenant->id));
+        $this->assertTrue(Str::isUuid($owner->id));
+        $this->assertAuthenticatedAs($owner);
         $this->assertSame(UserRole::OWNER, $owner->role);
         $this->assertSame('OWNER', $owner->getRawOriginal('role'));
     }
@@ -84,13 +86,10 @@ class TenantProvisioningTest extends TestCase
         $tenant = Tenant::create([
             'name' => 'Salon de Belleza Aurora',
             'domain' => 'aurora.'.$baseDomain,
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
-        $response = $this->withSession([
-            'provisioned_tenant_id' => $tenant->id,
-        ])->get('/admin/dashboard');
+        $response = $this->actingAs($this->ownerFor($tenant))->get('/admin/dashboard');
 
         $response->assertOk();
         $response->assertSee('Salon de Belleza Aurora');
@@ -100,31 +99,34 @@ class TenantProvisioningTest extends TestCase
 
     public function test_admin_dashboard_returns_404_when_tenant_domain_does_not_exist(): void
     {
-        $response = $this->get('http://missing.'.config('provisioning.base_domain').'/admin/dashboard');
+        $tenant = Tenant::factory()->create();
+
+        $response = $this
+            ->actingAs($this->ownerFor($tenant))
+            ->get('http://missing.'.config('provisioning.base_domain').'/admin/dashboard');
 
         $response->assertNotFound();
     }
 
-    public function test_admin_dashboard_falls_back_to_latest_tenant_on_localhost_for_development(): void
+    public function test_admin_dashboard_uses_the_authenticated_users_tenant_on_localhost(): void
     {
-        Tenant::create([
+        $tenant = Tenant::create([
             'name' => 'Salon de Belleza Uno',
             'domain' => 'uno.'.config('provisioning.base_domain'),
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
         $latestTenant = Tenant::create([
             'name' => 'Salon de Belleza Dos',
             'domain' => 'dos.'.config('provisioning.base_domain'),
-            'tenant_id' => 2,
             'status' => 'active',
         ]);
 
-        $response = $this->get('/admin/dashboard');
+        $response = $this->actingAs($this->ownerFor($tenant))->get('/admin/dashboard');
 
         $response->assertOk();
-        $response->assertSee($latestTenant->name);
+        $response->assertSee($tenant->name);
+        $response->assertDontSee($latestTenant->name);
     }
 
     public function test_admin_sections_can_be_loaded_for_navigation_validation(): void
@@ -132,17 +134,16 @@ class TenantProvisioningTest extends TestCase
         $tenant = Tenant::create([
             'name' => 'Salon de Belleza Navegacion',
             'domain' => 'navegacion.'.config('provisioning.base_domain'),
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
-        $session = ['provisioned_tenant_id' => $tenant->id];
+        $this->actingAs($this->ownerFor($tenant));
 
-        $this->withSession($session)->get('/admin/services')->assertOk()->assertSee('Servicios');
-        $this->withSession($session)->get('/admin/reminders')->assertOk()->assertSee('Recordatorios');
-        $this->withSession($session)->get('/admin/users')->assertOk()->assertSee('Usuarios');
-        $this->withSession($session)->get('/admin/clients')->assertOk()->assertSee('Clientes');
-        $this->withSession($session)->get('/admin/settings')->assertOk()->assertSee('Configuracion');
+        $this->get('/admin/services')->assertOk()->assertSee('Servicios');
+        $this->get('/admin/reminders')->assertOk()->assertSee('Recordatorios');
+        $this->get('/admin/users')->assertOk()->assertSee('Usuarios');
+        $this->get('/admin/clients')->assertOk()->assertSee('Clientes');
+        $this->get('/admin/settings')->assertOk()->assertSee('Configuracion');
     }
 
     public function test_owner_email_must_be_unique_for_owner_accounts(): void
@@ -150,7 +151,6 @@ class TenantProvisioningTest extends TestCase
         $tenant = Tenant::create([
             'name' => 'Existing Salon',
             'domain' => 'existing-owner.'.config('provisioning.base_domain'),
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
@@ -186,7 +186,6 @@ class TenantProvisioningTest extends TestCase
         Tenant::create([
             'name' => 'Existing Salon',
             'domain' => 'taken.'.config('provisioning.base_domain'),
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
@@ -231,14 +230,12 @@ class TenantProvisioningTest extends TestCase
         $firstTenant = Tenant::create([
             'name' => 'First Salon',
             'domain' => 'first.'.config('provisioning.base_domain'),
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
         $secondTenant = Tenant::create([
             'name' => 'Second Salon',
             'domain' => 'second.'.config('provisioning.base_domain'),
-            'tenant_id' => 2,
             'status' => 'active',
         ]);
 
@@ -270,14 +267,12 @@ class TenantProvisioningTest extends TestCase
         $firstTenant = Tenant::create([
             'name' => 'Owner One',
             'domain' => 'owner-one.'.config('provisioning.base_domain'),
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
         $secondTenant = Tenant::create([
             'name' => 'Owner Two',
             'domain' => 'owner-two.'.config('provisioning.base_domain'),
-            'tenant_id' => 2,
             'status' => 'active',
         ]);
 
@@ -300,6 +295,14 @@ class TenantProvisioningTest extends TestCase
             'name' => 'Bea Owner',
             'email' => 'owner-db@example.com',
             'password' => 'Secret123!',
+            'role' => UserRole::OWNER,
+        ]);
+    }
+
+    private function ownerFor(Tenant $tenant): User
+    {
+        return User::factory()->create([
+            'tenant_id' => $tenant->id,
             'role' => UserRole::OWNER,
         ]);
     }

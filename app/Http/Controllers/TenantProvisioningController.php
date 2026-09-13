@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -83,18 +84,14 @@ class TenantProvisioningController extends Controller
             'terms_accepted.accepted' => 'Debes aceptar los terminos para continuar.',
         ]);
 
-        $tenant = DB::transaction(function () use ($validated): Tenant {
+        [$tenant, $owner] = DB::transaction(function () use ($validated): array {
             $tenant = Tenant::create([
                 'name' => $validated['salon_name'],
                 'domain' => $this->fullDomain($validated['subdomain']),
                 'status' => 'active',
             ]);
 
-            $tenant->forceFill([
-                'tenant_id' => $tenant->id,
-            ])->save();
-
-            User::create([
+            $owner = User::create([
                 'tenant_id' => $tenant->id,
                 'first_name' => $validated['owner_first_name'],
                 'last_name' => $validated['owner_last_name'],
@@ -104,8 +101,11 @@ class TenantProvisioningController extends Controller
                 'role' => UserRole::OWNER,
             ]);
 
-            return $tenant;
+            return [$tenant, $owner];
         });
+
+        Auth::login($owner);
+        $request->session()->regenerate();
 
         return to_route('admin.dashboard')->with([
             'success' => 'Tu espacio de trabajo para el salon ya esta listo.',

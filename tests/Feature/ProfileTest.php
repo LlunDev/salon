@@ -104,7 +104,6 @@ class ProfileTest extends TestCase
         $tenant = Tenant::create([
             'name' => 'Aurora Salon',
             'domain' => 'aurora.salon.test',
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
@@ -137,14 +136,12 @@ class ProfileTest extends TestCase
         $firstTenant = Tenant::create([
             'name' => 'Aurora Salon',
             'domain' => 'aurora.salon.test',
-            'tenant_id' => 1,
             'status' => 'active',
         ]);
 
         $secondTenant = Tenant::create([
             'name' => 'Luna Salon',
             'domain' => 'luna.salon.test',
-            'tenant_id' => 2,
             'status' => 'active',
         ]);
 

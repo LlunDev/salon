@@ -39,7 +39,6 @@ class HandleInertiaRequests extends Middleware
             ],
             'tenant' => fn () => $request->attributes->get('tenant')?->only([
                 'id',
-                'tenant_id',
                 'name',
                 'domain',
                 'status',

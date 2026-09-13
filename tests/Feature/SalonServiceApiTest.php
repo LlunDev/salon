@@ -7,7 +7,9 @@ use App\Models\SalonService;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use Tests\TestCase;
 
 class SalonServiceApiTest extends TestCase
@@ -86,6 +88,27 @@ class SalonServiceApiTest extends TestCase
             ->assertJsonPath('data.0.name', 'Visible service');
     }
 
+    public function test_index_searches_services_by_name_and_description_within_the_tenant(): void
+    {
+        [$tenant, $user] = $this->tenantUser();
+        [$otherTenant, $otherUser] = $this->tenantUser();
+        $this->service($tenant, $user, ['name' => 'Corte premium', 'description' => 'Diseño personalizado']);
+        $this->service($tenant, $user, ['name' => 'Manicura', 'description' => 'Esmaltado duradero']);
+        $this->service($tenant, $user, ['name' => 'Masaje', 'description' => 'Relajación profunda']);
+        $this->service($otherTenant, $otherUser, ['name' => 'Corte extranjero']);
+        $this->actingAs($user);
+
+        $this->getJson(route('api.admin.services.index', ['search' => 'corte']))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Corte premium');
+
+        $this->getJson(route('api.admin.services.index', ['search' => 'duradero']))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Manicura');
+    }
+
     public function test_tenant_cannot_access_or_mutate_another_tenants_service(): void
     {
         [$tenant, $user] = $this->tenantUser();
@@ -157,6 +180,14 @@ class SalonServiceApiTest extends TestCase
     public function test_service_api_requires_authentication(): void
     {
         $this->getJson(route('api.admin.services.index'))->assertUnauthorized();
+    }
+
+    public function test_current_host_with_a_custom_port_is_treated_as_stateful(): void
+    {
+        $request = Request::create('http://127.0.0.1:18080/api/admin/services', 'POST');
+        $request->headers->set('origin', 'http://127.0.0.1:18080');
+
+        $this->assertTrue(EnsureFrontendRequestsAreStateful::fromFrontend($request));
     }
 
     /**

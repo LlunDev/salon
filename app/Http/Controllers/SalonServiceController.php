@@ -16,8 +16,25 @@ class SalonServiceController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $search = trim($validated['search'] ?? '');
+
         return SalonServiceResource::collection(
-            $this->tenant($request)->salonServices()->latest()->paginate(15),
+            $this->tenant($request)
+                ->salonServices()
+                ->when($search !== '', function ($query) use ($search): void {
+                    $query->where(function ($query) use ($search): void {
+                        $query
+                            ->where('name', 'ilike', "%{$search}%")
+                            ->orWhere('description', 'ilike', "%{$search}%");
+                    });
+                })
+                ->latest()
+                ->paginate(15)
+                ->withQueryString(),
         );
     }
 

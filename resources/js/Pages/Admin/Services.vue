@@ -1,5 +1,6 @@
 <script setup>
 import BasePage from '@/Components/BasePage.vue';
+import { toast } from '@/Composables/useToast';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
@@ -17,8 +18,15 @@ const modalOpen = ref(false);
 const saving = ref(false);
 const formError = ref('');
 const errors = ref({});
+const editingService = ref(null);
+const openMenuId = ref(null);
+const deleteCandidate = ref(null);
+const deleting = ref(false);
+const deleteError = ref('');
+const loadingService = ref(false);
 let searchTimer;
 let requestController;
+let serviceController;
 
 const form = reactive({
     name: '',
@@ -33,6 +41,8 @@ const resultLabel = computed(() => {
     const total = pagination.value?.total ?? services.value.length;
     return `${total} ${total === 1 ? 'servicio' : 'servicios'}`;
 });
+
+const isEditing = computed(() => editingService.value !== null);
 
 function apiHeaders(includeJson = false) {
     const headers = {
@@ -83,16 +93,68 @@ watch(search, () => {
     searchTimer = setTimeout(() => loadServices(), 350);
 });
 
-function openModal() {
+function openCreateModal() {
+    serviceController?.abort();
+    editingService.value = null;
+    loadingService.value = false;
+    resetForm();
     errors.value = {};
     formError.value = '';
     modalOpen.value = true;
     document.body.style.overflow = 'hidden';
 }
 
+async function openEditModal(service) {
+    openMenuId.value = null;
+    editingService.value = { id: service.id };
+    loadingService.value = true;
+    resetForm();
+    errors.value = {};
+    formError.value = '';
+    modalOpen.value = true;
+    document.body.style.overflow = 'hidden';
+
+    serviceController?.abort();
+    const controller = new AbortController();
+    serviceController = controller;
+
+    try {
+        const response = await fetch(`/api/admin/services/${service.id}`, {
+            headers: apiHeaders(),
+            signal: controller.signal,
+        });
+        const payload = await response.json();
+
+        if (!response.ok) throw new Error(payload.message);
+
+        const currentService = payload.data;
+        editingService.value = currentService;
+        Object.assign(form, {
+            name: currentService.name,
+            description: currentService.description ?? '',
+            duration: currentService.duration,
+            imageUrl: currentService.imageUrl ?? '',
+            price: currentService.price,
+            available: currentService.available,
+        });
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            modalOpen.value = false;
+            editingService.value = null;
+            document.body.style.overflow = '';
+            toast.error('No pudimos obtener la información actualizada del servicio.');
+        }
+    } finally {
+        if (!controller.signal.aborted) loadingService.value = false;
+    }
+}
+
 function closeModal() {
     if (saving.value) return;
+    serviceController?.abort();
     modalOpen.value = false;
+    editingService.value = null;
+    loadingService.value = false;
     document.body.style.overflow = '';
 }
 
@@ -102,23 +164,30 @@ function resetForm() {
     });
 }
 
-async function createService() {
+function formPayload() {
+    return {
+        name: form.name,
+        description: form.description || null,
+        duration: Number(form.duration),
+        imageUrl: form.imageUrl || null,
+        price: form.price,
+        available: form.available,
+    };
+}
+
+async function saveService() {
     saving.value = true;
     errors.value = {};
     formError.value = '';
 
+    const service = editingService.value;
+    const url = service ? `/api/admin/services/${service.id}` : '/api/admin/services';
+
     try {
-        const response = await fetch('/api/admin/services', {
-            method: 'POST',
+        const response = await fetch(url, {
+            method: service ? 'PATCH' : 'POST',
             headers: apiHeaders(true),
-            body: JSON.stringify({
-                name: form.name,
-                description: form.description || null,
-                duration: Number(form.duration),
-                imageUrl: form.imageUrl || null,
-                price: form.price,
-                available: form.available,
-            }),
+            body: JSON.stringify(formPayload()),
         });
         const payload = await response.json();
 
@@ -130,12 +199,62 @@ async function createService() {
 
         resetForm();
         modalOpen.value = false;
+        editingService.value = null;
         document.body.style.overflow = '';
-        await loadServices();
+        await loadServices(service ? (pagination.value?.current_page ?? 1) : 1);
+        toast.success(service ? 'El servicio se actualizó correctamente.' : 'El servicio se creó correctamente.');
     } catch {
-        formError.value = 'No pudimos crear el servicio. Revisa la información e inténtalo nuevamente.';
+        formError.value = `No pudimos ${service ? 'actualizar' : 'crear'} el servicio. Revisa la información e inténtalo nuevamente.`;
     } finally {
         saving.value = false;
+    }
+}
+
+function toggleServiceMenu(serviceId) {
+    openMenuId.value = openMenuId.value === serviceId ? null : serviceId;
+}
+
+function closeServiceMenu() {
+    openMenuId.value = null;
+}
+
+function confirmDelete(service) {
+    openMenuId.value = null;
+    deleteCandidate.value = service;
+    deleteError.value = '';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDeleteConfirmation() {
+    if (deleting.value) return;
+    deleteCandidate.value = null;
+    deleteError.value = '';
+    document.body.style.overflow = '';
+}
+
+async function deleteService() {
+    deleting.value = true;
+    deleteError.value = '';
+    const service = deleteCandidate.value;
+
+    try {
+        const response = await fetch(`/api/admin/services/${service.id}`, {
+            method: 'DELETE',
+            headers: apiHeaders(true),
+        });
+
+        if (!response.ok) throw new Error();
+
+        deleteCandidate.value = null;
+        document.body.style.overflow = '';
+        const currentPage = pagination.value?.current_page ?? 1;
+        const targetPage = services.value.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+        await loadServices(targetPage);
+        toast.success('El servicio se eliminó correctamente.');
+    } catch {
+        deleteError.value = 'No pudimos eliminar el servicio. Inténtalo nuevamente.';
+    } finally {
+        deleting.value = false;
     }
 }
 
@@ -153,19 +272,25 @@ function formatDuration(minutes) {
 }
 
 function onKeydown(event) {
-    if (event.key === 'Escape' && modalOpen.value) closeModal();
+    if (event.key !== 'Escape') return;
+    if (deleteCandidate.value) closeDeleteConfirmation();
+    else if (modalOpen.value) closeModal();
+    else closeServiceMenu();
 }
 
 onMounted(() => {
     loadServices();
     window.addEventListener('keydown', onKeydown);
+    window.addEventListener('click', closeServiceMenu);
 });
 
 onBeforeUnmount(() => {
     clearTimeout(searchTimer);
     requestController?.abort();
+    serviceController?.abort();
     document.body.style.overflow = '';
     window.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('click', closeServiceMenu);
 });
 </script>
 
@@ -191,7 +316,7 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="flex items-center justify-between gap-4 lg:justify-end">
                         <span class="text-sm font-medium text-slate-500">{{ resultLabel }}</span>
-                        <button type="button" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#7c3aed] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(124,58,237,0.28)] transition hover:-translate-y-0.5 hover:bg-[#6d28d9]" @click="openModal">
+                        <button type="button" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#7c3aed] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(124,58,237,0.28)] transition hover:-translate-y-0.5 hover:bg-[#6d28d9]" @click="openCreateModal">
                             <span class="text-lg leading-none">+</span> Nuevo servicio
                         </button>
                     </div>
@@ -217,7 +342,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div v-else class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                <article v-for="service in services" :key="service.id" class="group overflow-hidden rounded-[1.75rem] border border-[#e8def4] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_rgba(76,29,149,0.13)]">
+                <article v-for="service in services" :key="service.id" class="group cursor-pointer overflow-hidden rounded-[1.75rem] border border-[#e8def4] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_rgba(76,29,149,0.13)]" @click="openEditModal(service)">
                     <div class="relative h-48 overflow-hidden bg-[linear-gradient(135deg,#ede9fe,#fce7f3)]">
                         <img v-if="service.imageUrl" :src="service.imageUrl" :alt="service.name" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
                         <div v-else class="flex h-full items-center justify-center">
@@ -226,6 +351,17 @@ onBeforeUnmount(() => {
                         <span class="absolute left-4 top-4 rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm backdrop-blur" :class="service.available ? 'bg-emerald-50/95 text-emerald-700' : 'bg-slate-900/80 text-white'">
                             {{ service.available ? 'Disponible' : 'No disponible' }}
                         </span>
+                        <div class="absolute right-4 top-4" @click.stop>
+                            <button type="button" class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/70 bg-white/80 text-xl font-bold tracking-[0.12em] text-slate-700 shadow-[0_8px_24px_rgba(15,23,42,0.16)] backdrop-blur-xl transition active:scale-95" :aria-expanded="openMenuId === service.id" aria-label="Opciones del servicio" @click.stop="toggleServiceMenu(service.id)">•••</button>
+                            <transition enter-active-class="transition duration-150 ease-out" enter-from-class="translate-y-1 scale-95 opacity-0" leave-active-class="transition duration-100 ease-in" leave-to-class="translate-y-1 scale-95 opacity-0">
+                                <div v-if="openMenuId === service.id" class="absolute right-0 top-14 z-20 w-48 overflow-hidden rounded-2xl border border-white/80 bg-white/85 p-1.5 shadow-[0_18px_50px_rgba(15,23,42,0.22)] ring-1 ring-slate-900/5 backdrop-blur-2xl" @click.stop>
+                                    <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50 active:bg-rose-100" @click.stop="confirmDelete(service)">
+                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                        Eliminar servicio
+                                    </button>
+                                </div>
+                            </transition>
+                        </div>
                     </div>
                     <div class="flex min-h-[14rem] flex-col p-5">
                         <h2 class="text-xl font-semibold tracking-tight text-slate-950">{{ service.name }}</h2>
@@ -251,12 +387,19 @@ onBeforeUnmount(() => {
         <Teleport to="body">
             <transition enter-active-class="transition duration-200" enter-from-class="opacity-0" leave-active-class="transition duration-150" leave-to-class="opacity-0">
                 <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-end justify-center bg-[#120f19]/65 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="service-form-title" @mousedown.self="closeModal">
-                    <form class="max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] bg-white shadow-[0_30px_100px_rgba(15,23,42,0.35)] sm:max-w-2xl sm:rounded-[2rem]" @submit.prevent="createService">
+                    <form class="max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] bg-white shadow-[0_30px_100px_rgba(15,23,42,0.35)] sm:max-w-2xl sm:rounded-[2rem]" @submit.prevent="saveService">
                         <div class="sticky top-0 z-10 flex items-start justify-between border-b border-[#eee7f4] bg-white/95 px-5 py-5 backdrop-blur sm:px-7">
-                            <div><p class="text-xs font-semibold uppercase tracking-[0.28em] text-[#db2777]">Nuevo servicio</p><h2 id="service-form-title" class="mt-2 text-2xl font-semibold text-slate-950">Amplía tu catálogo</h2></div>
+                            <div><p class="text-xs font-semibold uppercase tracking-[0.28em] text-[#db2777]">{{ isEditing ? 'Editar servicio' : 'Nuevo servicio' }}</p><h2 id="service-form-title" class="mt-2 text-2xl font-semibold text-slate-950">{{ isEditing ? 'Actualiza los detalles' : 'Amplía tu catálogo' }}</h2></div>
                             <button type="button" class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-500 transition hover:bg-slate-200 hover:text-slate-900" aria-label="Cerrar formulario" @click="closeModal">×</button>
                         </div>
-                        <div class="space-y-5 p-5 sm:p-7">
+                        <div v-if="loadingService" class="space-y-5 p-5 sm:p-7" aria-label="Cargando información del servicio">
+                            <div class="h-5 w-32 animate-pulse rounded-lg bg-slate-200" />
+                            <div class="h-11 animate-pulse rounded-xl bg-slate-100" />
+                            <div class="h-24 animate-pulse rounded-xl bg-slate-100" />
+                            <div class="grid grid-cols-2 gap-5"><div class="h-11 animate-pulse rounded-xl bg-slate-100"/><div class="h-11 animate-pulse rounded-xl bg-slate-100"/></div>
+                            <div class="h-20 animate-pulse rounded-2xl bg-[#f3eff7]" />
+                        </div>
+                        <div v-else class="space-y-5 p-5 sm:p-7">
                             <p v-if="formError" class="rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-700">{{ formError }}</p>
                             <div><label class="text-sm font-semibold text-slate-700" for="service-name">Nombre del servicio</label><input id="service-name" v-model="form.name" maxlength="120" required class="mt-2 w-full rounded-xl border-[#ded6e6] focus:border-[#8b5cf6] focus:ring-[#8b5cf6]" placeholder="Ej. Corte y peinado premium"><p v-if="errors.name" class="mt-1.5 text-sm text-rose-600">{{ errors.name[0] }}</p></div>
                             <div><label class="text-sm font-semibold text-slate-700" for="service-description">Descripción</label><textarea id="service-description" v-model="form.description" rows="3" class="mt-2 w-full resize-none rounded-xl border-[#ded6e6] focus:border-[#8b5cf6] focus:ring-[#8b5cf6]" placeholder="Describe la experiencia y lo que incluye el servicio"/><p v-if="errors.description" class="mt-1.5 text-sm text-rose-600">{{ errors.description[0] }}</p></div>
@@ -267,11 +410,28 @@ onBeforeUnmount(() => {
                             <div><label class="text-sm font-semibold text-slate-700" for="service-image">URL de la imagen <span class="font-normal text-slate-400">(opcional)</span></label><input id="service-image" v-model="form.imageUrl" type="url" maxlength="2048" class="mt-2 w-full rounded-xl border-[#ded6e6] focus:border-[#8b5cf6] focus:ring-[#8b5cf6]" placeholder="https://ejemplo.com/imagen.jpg"><p v-if="errors.imageUrl" class="mt-1.5 text-sm text-rose-600">{{ errors.imageUrl[0] }}</p></div>
                             <label class="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-[#f8f5fb] p-4"><span><span class="block text-sm font-semibold text-slate-800">Disponible para clientes</span><span class="mt-1 block text-xs leading-5 text-slate-500">Podrás cambiar esta visibilidad más adelante.</span></span><input v-model="form.available" type="checkbox" class="h-6 w-6 rounded-lg border-[#cfc1dd] text-[#7c3aed] focus:ring-[#8b5cf6]"></label>
                         </div>
-                        <div class="sticky bottom-0 flex gap-3 border-t border-[#eee7f4] bg-white/95 px-5 py-4 backdrop-blur sm:justify-end sm:px-7">
+                        <div v-if="!loadingService" class="sticky bottom-0 flex gap-3 border-t border-[#eee7f4] bg-white/95 px-5 py-4 backdrop-blur sm:justify-end sm:px-7">
                             <button type="button" class="flex-1 rounded-xl px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:flex-none" @click="closeModal">Cancelar</button>
-                            <button type="submit" :disabled="saving" class="flex-1 rounded-xl bg-[#7c3aed] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(124,58,237,0.25)] transition hover:bg-[#6d28d9] disabled:cursor-wait disabled:opacity-60 sm:flex-none">{{ saving ? 'Creando...' : 'Crear servicio' }}</button>
+                            <button type="submit" :disabled="saving" class="flex-1 rounded-xl bg-[#7c3aed] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(124,58,237,0.25)] transition hover:bg-[#6d28d9] disabled:cursor-wait disabled:opacity-60 sm:flex-none">{{ saving ? (isEditing ? 'Guardando...' : 'Creando...') : (isEditing ? 'Guardar cambios' : 'Crear servicio') }}</button>
                         </div>
                     </form>
+                </div>
+            </transition>
+
+            <transition enter-active-class="transition duration-200" enter-from-class="opacity-0" leave-active-class="transition duration-150" leave-to-class="opacity-0">
+                <div v-if="deleteCandidate" class="fixed inset-0 z-[60] flex items-end justify-center bg-[#120f19]/65 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="delete-service-title" @mousedown.self="closeDeleteConfirmation">
+                    <div class="w-full rounded-t-[2rem] border border-white/70 bg-white/95 p-6 shadow-[0_30px_100px_rgba(15,23,42,0.4)] backdrop-blur-2xl sm:max-w-md sm:rounded-[2rem] sm:p-7">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+                            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                        <h2 id="delete-service-title" class="mt-5 text-2xl font-semibold tracking-tight text-slate-950">Eliminar servicio</h2>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Vas a eliminar <strong class="font-semibold text-slate-900">{{ deleteCandidate.name }}</strong>. Esta acción es permanente y no se puede deshacer.</p>
+                        <p v-if="deleteError" class="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-700">{{ deleteError }}</p>
+                        <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <button type="button" class="rounded-xl px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100" :disabled="deleting" @click="closeDeleteConfirmation">Cancelar</button>
+                            <button type="button" class="rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(225,29,72,0.24)] transition hover:bg-rose-700 disabled:cursor-wait disabled:opacity-60" :disabled="deleting" @click="deleteService">{{ deleting ? 'Eliminando...' : 'Eliminar definitivamente' }}</button>
+                        </div>
+                    </div>
                 </div>
             </transition>
         </Teleport>

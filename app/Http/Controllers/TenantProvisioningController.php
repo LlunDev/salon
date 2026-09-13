@@ -101,6 +101,8 @@ class TenantProvisioningController extends Controller
                 'role' => UserRole::OWNER,
             ]);
 
+            $tenant->salonSetting()->create();
+
             return [$tenant, $owner];
         });
 

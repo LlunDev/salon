@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateAppointment
 {
+    public function __construct(private readonly EnsureSalonAvailability $ensureSalonAvailability) {}
+
     /**
      * @param  list<string>  $serviceIds
      */
@@ -35,7 +37,7 @@ class CreateAppointment
 
             $settings = SalonSetting::query()->firstOrCreate(
                 ['tenant_id' => $tenant->id],
-                ['appointment_capacity' => 1, 'cancellation_notice_hours' => 24],
+                ['timezone' => 'America/Bogota', 'slot_interval_minutes' => 15, 'appointment_capacity' => 1, 'cancellation_notice_hours' => 24],
             );
             $services = SalonService::query()
                 ->where('tenant_id', $tenant->id)
@@ -49,6 +51,8 @@ class CreateAppointment
 
             $duration = $services->sum('duration_minutes');
             $endsAt = $startsAt->addMinutes($duration);
+
+            $this->ensureSalonAvailability->handle($tenant, $startsAt, $endsAt);
 
             $overlaps = Appointment::query()
                 ->where('tenant_id', $tenant->id)

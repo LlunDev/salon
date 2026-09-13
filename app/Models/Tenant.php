@@ -50,4 +50,14 @@ class Tenant extends Model
     {
         return $this->hasOne(SalonSetting::class);
     }
+
+    public function weeklyHours(): HasMany
+    {
+        return $this->hasMany(SalonWeeklyHour::class);
+    }
+
+    public function scheduleBlocks(): HasMany
+    {
+        return $this->hasMany(SalonScheduleBlock::class);
+    }
 }

@@ -6,7 +6,7 @@ El objetivo del MVP es que un cliente pueda escoger servicios, reservar una cita
 
 - [x] Gestión completa de servicios: listado, búsqueda, creación, edición y eliminación.
 - [x] Duración, precio, disponibilidad e imagen por servicio.
-- [ ] Configuración de horarios del salón.
+- [x] Configuración de horarios del salón.
 - [ ] Reserva pública de citas.
 - [ ] Agenda administrativa.
 - [ ] Recordatorios.
@@ -38,7 +38,7 @@ Definir el modelo y sus reglas antes de construir la interfaz.
 
 **Criterio de salida:** el dominio, esquema de datos, contratos API y casos de prueba principales están definidos.
 
-### 2. Configurar horarios del salón
+### 2. Configurar horarios del salón [completado]
 
 Crear la disponibilidad general usada por todas las reservas.
 
@@ -152,4 +152,4 @@ Estas capacidades solo deben incorporarse después de validar el flujo principal
 
 ## Próxima tarea
 
-Implementar la fase 2: configuración de horarios, zona horaria, bloqueos y capacidad general del salón.
+Implementar la fase 3: catálogo público y selección persistente de uno o varios servicios con cálculo de duración y precio total.

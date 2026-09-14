@@ -14,8 +14,9 @@ class ResolveTenantFromDomain
         $host = strtolower($request->getHost());
 
         if (in_array($host, ['127.0.0.1', 'localhost'], true)) {
+            $sessionTenantId = $request->hasSession() ? $request->session()->get('provisioned_tenant_id') : null;
             $tenant = Tenant::query()
-                ->whereKey($request->user()?->tenant_id ?? $request->session()->get('provisioned_tenant_id'))
+                ->whereKey($request->user()?->tenant_id ?? $sessionTenantId)
                 ->first();
 
             abort_if(! $tenant, 404);
@@ -30,7 +31,7 @@ class ResolveTenantFromDomain
             ->first();
 
         abort_if(! $tenant, 404);
-        abort_unless($request->user()?->tenant_id === $tenant->id, 403);
+        abort_if($request->user() && $request->user()->tenant_id !== $tenant->id, 403);
 
         $request->attributes->set('tenant', $tenant);
 

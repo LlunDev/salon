@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminSectionController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicSalonController;
 use App\Http\Controllers\TenantProvisioningController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,10 @@ Route::get('/demo', [TenantProvisioningController::class, 'create'])->name('demo
 Route::get('/demo/domain-availability', [TenantProvisioningController::class, 'domainAvailability'])
     ->name('demo.domain-availability');
 Route::post('/demo/provision', [TenantProvisioningController::class, 'store'])->name('demo.provision');
+Route::middleware('tenant.resolve')->group(function (): void {
+    Route::get('/reservar', [PublicSalonController::class, 'services'])->name('booking.services');
+    Route::get('/reservar/fecha', [PublicSalonController::class, 'schedule'])->name('booking.schedule');
+});
 Route::middleware(['auth', 'tenant.resolve'])->group(function () {
     Route::get('/admin/dashboard', AdminDashboardController::class)->name('admin.dashboard');
     Route::get('/admin/services', [AdminSectionController::class, 'services'])->name('admin.services');

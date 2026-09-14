@@ -1,10 +1,19 @@
 <?php
 
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\PublicAppointmentAvailabilityController;
+use App\Http\Controllers\PublicSalonServiceController;
 use App\Http\Controllers\SalonScheduleBlockController;
 use App\Http\Controllers\SalonScheduleController;
 use App\Http\Controllers\SalonServiceController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('public/services', [PublicSalonServiceController::class, 'index'])
+    ->middleware('tenant.resolve')
+    ->name('api.public.services.index');
+Route::get('public/availability', PublicAppointmentAvailabilityController::class)
+    ->middleware('tenant.resolve')
+    ->name('api.public.availability');
 
 Route::prefix('admin')
     ->name('api.admin.')

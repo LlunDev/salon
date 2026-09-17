@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,11 +17,14 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('tenant');
+
         return Inertia::render('Auth/Login', [
-            'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'salon' => $tenant->only(['id', 'name']),
         ]);
     }
 
@@ -33,7 +37,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('admin.dashboard', absolute: false));
+        if ($request->user()->role !== UserRole::CLIENT) {
+            return to_route('admin.dashboard');
+        }
+
+        return redirect()->intended(route('booking.account', absolute: false));
     }
 
     /**

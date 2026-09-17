@@ -19,6 +19,10 @@ class ResolveTenantFromDomain
                 ->whereKey($request->user()?->tenant_id ?? $sessionTenantId)
                 ->first();
 
+            if (! $tenant && $request->hasSession()) {
+                $tenant = Tenant::query()->latest()->first();
+            }
+
             abort_if(! $tenant, 404);
 
             $request->attributes->set('tenant', $tenant);

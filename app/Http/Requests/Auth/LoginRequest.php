@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\Tenant;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -42,7 +43,14 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        /** @var Tenant $tenant */
+        $tenant = $this->attributes->get('tenant');
+
+        if (! Auth::attempt([
+            'tenant_id' => $tenant->id,
+            'email' => $this->string('email')->lower()->toString(),
+            'password' => $this->string('password')->toString(),
+        ], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -81,6 +89,8 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        $tenantId = $this->attributes->get('tenant')?->id ?? 'unknown';
+
+        return Str::transliterate($tenantId.'|'.Str::lower($this->string('email')).'|'.$this->ip());
     }
 }

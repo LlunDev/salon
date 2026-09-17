@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\SalonSetting;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
@@ -21,6 +22,16 @@ class PublicSalonController extends Controller
     {
         return Inertia::render('Public/Schedule', [
             'salon' => $this->salon($request),
+        ]);
+    }
+
+    public function account(Request $request): Response
+    {
+        abort_unless($request->user()->role === UserRole::CLIENT, 403);
+
+        return Inertia::render('Public/Account', [
+            'salon' => $this->salon($request),
+            'customer' => $request->user()->only(['name', 'email', 'phone']),
         ]);
     }
 

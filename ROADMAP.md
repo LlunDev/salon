@@ -50,7 +50,7 @@ Crear la disponibilidad general usada por todas las reservas.
 
 **Criterio de salida:** el administrador puede configurar la disponibilidad y el backend puede determinar si un rango está abierto o bloqueado.
 
-### 3. Seleccionar servicios en la reserva pública
+### 3. Seleccionar servicios en la reserva pública [completado]
 
 Construir el inicio del flujo mobile-first para clientes.
 
@@ -61,7 +61,7 @@ Construir el inicio del flujo mobile-first para clientes.
 
 **Criterio de salida:** el cliente puede construir una selección válida y continuar al calendario.
 
-### 4. Calcular y mostrar horarios disponibles
+### 4. Calcular y mostrar horarios disponibles [completado]
 
 Generar slots desde la disponibilidad real del salón.
 
@@ -73,7 +73,7 @@ Generar slots desde la disponibilidad real del salón.
 
 **Criterio de salida:** el cliente solo puede seleccionar horarios que siguen disponibles para la duración completa de su reserva.
 
-### 5. Registrar o autenticar al cliente
+### 5. Registrar o autenticar al cliente [completado]
 
 Exigir una cuenta de cliente antes de confirmar la cita y solicitar únicamente la información necesaria para gestionarla y enviar recordatorios.
 
@@ -152,4 +152,4 @@ Estas capacidades solo deben incorporarse después de validar el flujo principal
 
 ## Próxima tarea
 
-Implementar la fase 3: catálogo público y selección persistente de uno o varios servicios con cálculo de duración y precio total.
+Implementar la fase 6: validación final, creación y confirmación segura de la cita.

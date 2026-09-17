@@ -162,7 +162,7 @@ onBeforeUnmount(() => requestController?.abort());
         </main>
 
         <div v-if="selectedSlot" class="fixed inset-x-0 bottom-0 z-30 border-t border-violet-100 bg-white/95 shadow-[0_-16px_45px_rgba(44,24,65,0.12)] backdrop-blur-xl">
-            <div class="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8"><div><p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tu cita</p><p class="mt-1 font-semibold">{{ dates.find((date) => date.value === selectedDate)?.weekday }} {{ dates.find((date) => date.value === selectedDate)?.day }} · {{ formatTime(selectedSlot) }}</p></div><p class="rounded-2xl bg-violet-50 px-5 py-3 text-center text-sm font-semibold text-violet-700">Horario seleccionado ✓</p></div>
+            <div class="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8"><div><p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tu cita</p><p class="mt-1 font-semibold">{{ dates.find((date) => date.value === selectedDate)?.weekday }} {{ dates.find((date) => date.value === selectedDate)?.day }} · {{ formatTime(selectedSlot) }}</p></div><Link :href="route('booking.account')" class="continue-button rounded-2xl px-6 py-3 text-center text-sm font-semibold text-white">Continuar con tus datos</Link></div>
         </div>
     </div>
 </template>

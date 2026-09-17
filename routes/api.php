@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminAgendaController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\PublicAppointmentAvailabilityController;
 use App\Http\Controllers\PublicSalonServiceController;
@@ -19,6 +20,9 @@ Route::prefix('admin')
     ->name('api.admin.')
     ->middleware(['auth:sanctum', 'tenant.resolve'])
     ->group(function (): void {
+        Route::get('agenda', [AdminAgendaController::class, 'index'])->name('agenda.index');
+        Route::get('clients', [AdminAgendaController::class, 'clients'])->name('clients.index');
+        Route::post('appointments', [AdminAgendaController::class, 'store'])->name('appointments.store');
         Route::apiResource('services', SalonServiceController::class)
             ->parameters(['services' => 'salonService']);
         Route::get('schedule', [SalonScheduleController::class, 'show'])->name('schedule.show');

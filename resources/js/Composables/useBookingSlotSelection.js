@@ -22,7 +22,12 @@ export function useBookingSlotSelection(salonId, initialDate) {
         }
     }
 
-    return { selectedDate, selectedStartsAt, selectDate, reconcile };
+    function clear() {
+        selectedDate.value = initialDate;
+        selectedStartsAt.value = '';
+    }
+
+    return { selectedDate, selectedStartsAt, selectDate, reconcile, clear };
 }
 
 function readSlot(storageKey) {

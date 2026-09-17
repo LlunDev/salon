@@ -72,6 +72,6 @@ class AppointmentController extends Controller
 
     private function appointment(Request $request, string $id): Appointment
     {
-        return $this->tenant($request)->appointments()->with('services')->findOrFail($id);
+        return $this->tenant($request)->appointments()->with(['services', 'client'])->findOrFail($id);
     }
 }

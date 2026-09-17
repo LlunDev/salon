@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreAppointmentRequest extends FormRequest
 {
@@ -36,6 +37,17 @@ class StoreAppointmentRequest extends FormRequest
             'serviceIds.*.required' => 'Cada servicio seleccionado es obligatorio.',
             'serviceIds.*.uuid' => 'Cada servicio seleccionado debe tener un UUID válido.',
             'serviceIds.*.distinct' => 'No puedes seleccionar el mismo servicio más de una vez.',
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if (! $this->user()?->name || ! $this->user()?->email || ! $this->user()?->phone) {
+                    $validator->errors()->add('customer', 'Completa tus datos de contacto antes de confirmar la cita.');
+                }
+            },
         ];
     }
 }

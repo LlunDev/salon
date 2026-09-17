@@ -28,6 +28,7 @@ Route::middleware('tenant.resolve')->group(function (): void {
 });
 Route::middleware(['auth', 'tenant.resolve'])->group(function (): void {
     Route::get('/reservar/cuenta', [PublicSalonController::class, 'account'])->name('booking.account');
+    Route::get('/reservar/confirmacion/{appointment}', [PublicSalonController::class, 'confirmation'])->name('booking.confirmation');
 });
 Route::middleware(['auth', 'tenant.resolve'])->group(function () {
     Route::get('/admin/dashboard', AdminDashboardController::class)->name('admin.dashboard');

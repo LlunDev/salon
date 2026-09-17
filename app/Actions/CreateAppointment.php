@@ -22,9 +22,9 @@ class CreateAppointment
     /**
      * @param  list<string>  $serviceIds
      */
-    public function handle(Tenant $tenant, User $client, string $bookingKey, CarbonImmutable $startsAt, array $serviceIds): Appointment
+    public function handle(Tenant $tenant, User $client, string $bookingKey, CarbonImmutable $startsAt, array $serviceIds, ?User $actor = null): Appointment
     {
-        return DB::transaction(function () use ($tenant, $client, $bookingKey, $startsAt, $serviceIds): Appointment {
+        return DB::transaction(function () use ($tenant, $client, $bookingKey, $startsAt, $serviceIds, $actor): Appointment {
             Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
 
             $existing = Appointment::query()
@@ -60,6 +60,7 @@ class CreateAppointment
             }
 
             $totalCents = $services->sum(fn ($service): int => (int) round(((float) $service->price) * 100));
+            $actor ??= $client;
             $appointment = Appointment::query()->create([
                 'tenant_id' => $tenant->id,
                 'client_id' => $client->id,
@@ -69,8 +70,8 @@ class CreateAppointment
                 'ends_at' => $endsAt,
                 'duration_minutes' => $duration,
                 'total' => number_format($totalCents / 100, 2, '.', ''),
-                'created_by' => $client->id,
-                'updated_by' => $client->id,
+                'created_by' => $actor->id,
+                'updated_by' => $actor->id,
             ]);
 
             $appointment->services()->createMany($services->map(fn ($service): array => [

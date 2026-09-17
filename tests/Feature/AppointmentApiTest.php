@@ -74,6 +74,21 @@ class AppointmentApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('serviceIds');
     }
 
+    public function test_creation_requires_complete_customer_contact_details(): void
+    {
+        [$tenant, $client] = $this->tenantUser(UserRole::CLIENT);
+        $client->update(['phone' => null]);
+        $service = $this->service($tenant);
+
+        $this->actingAs($client)->postJson(route('api.appointments.store'), [
+            'bookingKey' => (string) Str::uuid(),
+            'startsAt' => now()->addDay()->toISOString(),
+            'serviceIds' => [$service->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('customer');
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
     public function test_booking_key_is_idempotent_per_tenant_and_client(): void
     {
         [$tenant, $client] = $this->tenantUser(UserRole::CLIENT);

@@ -19,11 +19,16 @@ export function useBookingSelection(salonId) {
         selectedIds.value = selectedIds.value.filter((id) => availableIds.has(id));
     }
 
+    function clear() {
+        selectedIds.value = [];
+    }
+
     return {
         selectedIds,
         selectedCount: computed(() => selectedIds.value.length),
         toggle,
         reconcile,
+        clear,
     };
 }
 

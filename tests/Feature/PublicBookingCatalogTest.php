@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AppointmentStatus;
+use App\Enums\UserRole;
+use App\Models\Appointment;
 use App\Models\SalonService;
 use App\Models\Tenant;
 use App\Models\User;
@@ -99,6 +102,49 @@ class PublicBookingCatalogTest extends TestCase
             ->assertForbidden();
 
         $this->assertNotSame($tenant->id, $otherTenant->id);
+    }
+
+    public function test_client_can_open_server_backed_confirmation_for_own_appointment(): void
+    {
+        $tenant = Tenant::factory()->create(['domain' => 'aurora.salon.test']);
+        $client = User::factory()->create(['tenant_id' => $tenant->id, 'role' => UserRole::CLIENT]);
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $tenant->id,
+            'client_id' => $client->id,
+            'status' => AppointmentStatus::CONFIRMED,
+            'duration_minutes' => 45,
+            'total' => '35.00',
+        ]);
+        $appointment->services()->create([
+            'name' => 'Corte',
+            'duration_minutes' => 45,
+            'price' => '35.00',
+        ]);
+
+        $this->actingAs($client)
+            ->get("http://aurora.salon.test/reservar/confirmacion/{$appointment->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Public/Confirmation')
+                ->where('appointment.id', $appointment->id)
+                ->where('appointment.status', 'confirmed')
+                ->where('appointment.services.0.name', 'Corte')
+                ->missing('appointment.bookingKey'));
+    }
+
+    public function test_client_cannot_open_another_customers_or_tenants_confirmation(): void
+    {
+        $tenant = Tenant::factory()->create(['domain' => 'aurora.salon.test']);
+        $client = User::factory()->create(['tenant_id' => $tenant->id, 'role' => UserRole::CLIENT]);
+        $otherClient = User::factory()->create(['tenant_id' => $tenant->id, 'role' => UserRole::CLIENT]);
+        $otherAppointment = Appointment::factory()->create(['tenant_id' => $tenant->id, 'client_id' => $otherClient->id]);
+        $foreignAppointment = Appointment::factory()->create();
+
+        $this->actingAs($client)
+            ->get("http://aurora.salon.test/reservar/confirmacion/{$otherAppointment->id}")
+            ->assertNotFound();
+        $this->get("http://aurora.salon.test/reservar/confirmacion/{$foreignAppointment->id}")
+            ->assertNotFound();
     }
 
     /**

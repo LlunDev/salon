@@ -27,6 +27,12 @@ class AppointmentResource extends JsonResource
                 'duration' => $service->duration_minutes,
                 'price' => $service->price,
             ]),
+            'client' => $this->whenLoaded('client', fn (): array => [
+                'id' => $this->client->id,
+                'name' => $this->client->name,
+                'email' => $this->client->email,
+                'phone' => $this->client->phone,
+            ]),
             'cancellationReason' => $this->cancellation_reason,
             'notifyClient' => $this->notify_client,
             'cancelledBy' => $this->cancelled_by,

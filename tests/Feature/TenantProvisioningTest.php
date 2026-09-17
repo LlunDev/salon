@@ -94,7 +94,7 @@ class TenantProvisioningTest extends TestCase
         $response->assertOk();
         $response->assertSee('Salon de Belleza Aurora');
         $response->assertSee('aurora.'.$baseDomain);
-        $response->assertSee('Citas de hoy');
+        $response->assertSee('Agenda');
     }
 
     public function test_admin_dashboard_returns_404_when_tenant_domain_does_not_exist(): void

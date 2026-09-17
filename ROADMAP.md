@@ -7,8 +7,8 @@ El objetivo del MVP es que un cliente pueda escoger servicios, reservar una cita
 - [x] Gestión completa de servicios: listado, búsqueda, creación, edición y eliminación.
 - [x] Duración, precio, disponibilidad e imagen por servicio.
 - [x] Configuración de horarios del salón.
-- [ ] Reserva pública de citas.
-- [ ] Agenda administrativa.
+- [x] Reserva pública de citas.
+- [x] Agenda administrativa.
 - [ ] Recordatorios.
 
 ## Orden de implementación
@@ -86,7 +86,7 @@ Exigir una cuenta de cliente antes de confirmar la cita y solicitar únicamente 
 
 **Criterio de salida:** cada reserva queda asociada con una cuenta de cliente autenticada y con datos de contacto válidos.
 
-### 6. Crear y confirmar la cita
+### 6. Crear y confirmar la cita [completado]
 
 Cerrar el flujo público de reserva de forma segura.
 
@@ -98,7 +98,7 @@ Cerrar el flujo público de reserva de forma segura.
 
 **Criterio de salida:** una reserva confirmada aparece en el sistema una sola vez y conserva los datos comerciales vigentes al momento de reservar.
 
-### 7. Implementar la agenda administrativa
+### 7. Implementar la agenda administrativa [completado]
 
 Permitir que el salón gestione las citas recibidas.
 
@@ -152,4 +152,4 @@ Estas capacidades solo deben incorporarse después de validar el flujo principal
 
 ## Próxima tarea
 
-Implementar la fase 6: validación final, creación y confirmación segura de la cita.
+Implementar la fase 8: recordatorios trazables para citas confirmadas.
